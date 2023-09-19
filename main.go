@@ -10,7 +10,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/alexflint/go-arg"
+	"github.com/alecthomas/kong"
 	"github.com/fatih/color"
 )
 
@@ -43,21 +43,14 @@ type Command interface {
 	Subcommands() []Command
 }
 
-// Config for creating a merged filesystem of all switch games
-type cmdFS struct {
-	EnableWrite bool   `arg:"-w,--enable-write" help:"enable writing to output directory"`
-	InputDir    string `arg:"-i,--input" help:"path to directory containing subdirectories of switch games"`
-	OutputDir   string `arg:"-o,--output" help:"path to directory for mounting the flat filesystem"`
-}
-
-// Config for switch-related rom management
-type cmdSwitch struct {
-	CreateFS *cmdFS `arg:"subcommand:fs" help:"create a flat filesystem of detected switch roms"`
-}
-
-// Config for all commands
-type cmdRoot struct {
-	Switch *cmdSwitch `arg:"subcommand:switch" help:"switch-related ROM management utilities"`
+var CLI struct {
+	Switch *struct {
+		FS *struct {
+			EnableWrite bool   `short:"w" help:"enable writing to output directory"`
+			InputDir    string `short:"i" required:"" help:"path to directory containing subdirectories of switch games"`
+			OutputDir   string `short:"o" required:"" help:"path to directory for mounting the flat filesystem"`
+		} `cmd`
+	} `cmd`
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -75,30 +68,24 @@ type Action func()
 
 func main() {
 
-	// App setup
-	var app *cmdRoot
-	if err := arg.MustParse(&app); err != nil {
+	if err := kong.Parse(&CLI).Error; err != nil {
 		log.Fatal(err)
 	}
 
-	if app == nil {
-		log.Fatal("root command not configured")
-	}
-
 	switch {
-	case app.Switch != nil:
+	case CLI.Switch != nil:
 		switch {
-		case app.Switch.CreateFS != nil:
-			createFS(app)
+		case CLI.Switch.FS != nil:
+			createFS()
 		}
 	}
 
 }
 
-func createFS(app *cmdRoot) {
+func createFS() {
 
-	gamesSrcPath := app.Switch.CreateFS.InputDir
-	gamesDestPath := app.Switch.CreateFS.OutputDir
+	gamesSrcPath := CLI.Switch.FS.InputDir
+	gamesDestPath := CLI.Switch.FS.OutputDir
 
 	// Read in given directory containing switch games
 	files, err := ioutil.ReadDir(gamesSrcPath)
@@ -185,7 +172,7 @@ func createFS(app *cmdRoot) {
 	}
 
 	// If the user wants to enable writing in the final directory, create a separate "rw" directory for all written content
-	if app.Switch.CreateFS.EnableWrite {
+	if CLI.Switch.FS.EnableWrite {
 		rwDirPath := path.Join(gamesSrcPath, "rw")
 		os.MkdirAll(rwDirPath, 0755)
 		rcloneConfig[remoteUnion]["UPSTREAMS"] += fmtRclone(remoteLocal, rwDirPath) + " "

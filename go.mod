@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/adrg/xdg v0.4.0 // indirect
+	github.com/alecthomas/kong v0.8.0 // indirect
 	github.com/alexflint/go-arg v1.4.3 // indirect
 	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/fatih/color v1.15.0 // indirect
